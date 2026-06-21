@@ -56,4 +56,13 @@ public class User {
 
     @OneToMany(mappedBy = "user")
     private List<GearStory> stories;
+
+    @OneToMany(mappedBy = "user")
+    private List<Wishlist> wishlists;
+
+    @OneToMany(mappedBy = "provider")
+    private List<WishlistMatch> providedMatches;
+
+    @OneToMany(mappedBy = "user")
+    private List<Notification> notifications;
 }

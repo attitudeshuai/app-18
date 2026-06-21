@@ -38,6 +38,7 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/gearcategories", "/api/gearcategories/{id}").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/gearstories", "/api/gearstories/{id}").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/stats/**").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/wishlists", "/api/wishlists/{id}", "/api/wishlists/{id}/matches").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
