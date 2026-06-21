@@ -21,7 +21,7 @@ public class WishlistMatch {
     private Long id;
 
     @ManyToOne
-    @JoinColumn(name = "wishlist_id", nullable = false)
+    @JoinColumn(name = "wishlist_id")
     private Wishlist wishlist;
 
     @JsonIgnoreProperties({"passwordHash"})

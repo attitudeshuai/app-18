@@ -26,6 +26,7 @@ public interface WishlistRepository extends JpaRepository<Wishlist, Long> {
     Page<Wishlist> findByCityAndCategoryIdAndStatus(String city, Long categoryId, String status, Pageable pageable);
 
     @Query("SELECT w FROM Wishlist w WHERE " +
+           "w.status != 'Deleted' AND " +
            "(:city IS NULL OR w.city = :city) AND " +
            "(:categoryId IS NULL OR w.category.id = :categoryId) AND " +
            "(:status IS NULL OR w.status = :status) AND " +
@@ -36,4 +37,7 @@ public interface WishlistRepository extends JpaRepository<Wishlist, Long> {
             @Param("status") String status,
             @Param("keyword") String keyword,
             Pageable pageable);
+
+    @Query("SELECT w FROM Wishlist w WHERE w.user.id = :userId AND w.status != 'Deleted'")
+    Page<Wishlist> findByUserIdExcludingDeleted(@Param("userId") Long userId, Pageable pageable);
 }

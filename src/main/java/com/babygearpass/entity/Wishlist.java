@@ -60,9 +60,9 @@ public class Wishlist {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    @OneToMany(mappedBy = "wishlist", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "wishlist")
     private List<WishlistMatch> matches;
 
-    @OneToMany(mappedBy = "wishlist", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "wishlist")
     private List<Notification> notifications;
 }

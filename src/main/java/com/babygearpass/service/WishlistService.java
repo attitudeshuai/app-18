@@ -29,13 +29,18 @@ public class WishlistService {
 
     public Page<WishlistDTO> getMyWishlists(String username, Pageable pageable) {
         User user = getUserByUsername(username);
-        Page<Wishlist> wishlists = wishlistRepository.findByUserId(user.getId(), pageable);
+        Page<Wishlist> wishlists = wishlistRepository.findByUserIdExcludingDeleted(user.getId(), pageable);
         return wishlists.map(this::toWishlistDTO);
     }
 
     public WishlistDTO getWishlistById(Long id) {
         Wishlist wishlist = wishlistRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "心愿单不存在"));
+
+        if ("Deleted".equals(wishlist.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "心愿单不存在");
+        }
+
         return toWishlistDTO(wishlist);
     }
 
@@ -95,7 +100,8 @@ public class WishlistService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "无权操作此心愿单");
         }
 
-        wishlistRepository.delete(wishlist);
+        wishlist.setStatus("Deleted");
+        wishlistRepository.save(wishlist);
     }
 
     @Transactional
@@ -177,21 +183,27 @@ public class WishlistService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "匹配记录已处理，无法修改状态");
         }
 
-        match.setStatus(request.getStatus());
-        if (request.getIsAccepted() != null) {
-            match.setIsAccepted(request.getIsAccepted());
+        String status = request.getStatus();
+        if (!"Pending".equals(status) && !"Accepted".equals(status) && !"Rejected".equals(status)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "状态只能是Pending、Accepted或Rejected");
         }
 
-        if (Boolean.TRUE.equals(match.getIsAccepted()) && "Accepted".equals(request.getStatus())) {
+        match.setStatus(status);
+
+        if ("Accepted".equals(status)) {
+            match.setIsAccepted(true);
             closeWishlist(match.getWishlist(), match);
 
             createNotification(match.getProvider(), "MatchAccepted", "匹配已接受",
                     "您对心愿单 \"" + match.getWishlist().getTitle() + "\" 的匹配申请已被接受，请联系对方完成交接",
                     match.getWishlist(), match);
-        } else if ("Rejected".equals(request.getStatus())) {
+        } else if ("Rejected".equals(status)) {
+            match.setIsAccepted(false);
             createNotification(match.getProvider(), "MatchRejected", "匹配已拒绝",
                     "您对心愿单 \"" + match.getWishlist().getTitle() + "\" 的匹配申请已被拒绝",
                     match.getWishlist(), match);
+        } else {
+            match.setIsAccepted(false);
         }
 
         match = wishlistMatchRepository.save(match);
