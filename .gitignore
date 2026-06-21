@@ -1,0 +1,31 @@
+# Build output
+target/
+build/
+*.class
+*.jar
+*.war
+*.ear
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+
+# Environment & local config
+.env
+.env.local
+application-local.properties
+application-dev.properties
+
+# Logs
+*.log
+logs/
+
+# Test reports
+surefire-reports/
+
+# OS
+Thumbs.db
+.DS_Store
