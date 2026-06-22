@@ -5,9 +5,11 @@ import com.babygearpass.dto.handover.HandoverRequest;
 import com.babygearpass.dto.handover.HandoverStatusRequest;
 import com.babygearpass.entity.GearHandover;
 import com.babygearpass.entity.GearItem;
+import com.babygearpass.entity.QualityCheck;
 import com.babygearpass.entity.User;
 import com.babygearpass.repository.GearHandoverRepository;
 import com.babygearpass.repository.GearItemRepository;
+import com.babygearpass.repository.QualityCheckRepository;
 import com.babygearpass.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -23,6 +25,7 @@ public class GearHandoverService {
     private final GearHandoverRepository gearHandoverRepository;
     private final GearItemRepository gearItemRepository;
     private final UserRepository userRepository;
+    private final QualityCheckRepository qualityCheckRepository;
 
     public Page<HandoverDTO> getAllHandovers(String keyword, String status, Long gearItemId, Pageable pageable) {
         Page<GearHandover> handovers;
@@ -72,6 +75,11 @@ public class GearHandoverService {
         handover.setHandoverDate(request.getHandoverDate());
         handover.setLocation(request.getLocation());
         handover.setNote(request.getNote());
+
+        QualityCheck latestQC = qualityCheckRepository.findTopByGearItemIdOrderByCreatedAtDesc(gearItem.getId()).orElse(null);
+        if (latestQC != null && "Approved".equals(latestQC.getStatus())) {
+            handover.setQualityCheck(latestQC);
+        }
 
         gearHandoverRepository.save(handover);
         return toDTO(handover);
@@ -126,6 +134,18 @@ public class GearHandoverService {
     }
 
     private HandoverDTO toDTO(GearHandover handover) {
+        Long qcId = null;
+        String qcStatus = null;
+        Integer qcScore = null;
+        boolean certified = false;
+
+        if (handover.getQualityCheck() != null) {
+            qcId = handover.getQualityCheck().getId();
+            qcStatus = handover.getQualityCheck().getStatus();
+            qcScore = handover.getQualityCheck().getQualityScore();
+            certified = "Approved".equals(qcStatus);
+        }
+
         return new HandoverDTO(
                 handover.getId(),
                 handover.getGearItem().getId(),
@@ -134,10 +154,15 @@ public class GearHandoverService {
                 handover.getGiver().getUsername(),
                 handover.getReceiver().getId(),
                 handover.getReceiver().getUsername(),
+                qcId,
+                qcStatus,
+                qcScore,
+                certified,
                 handover.getHandoverDate(),
                 handover.getLocation(),
                 handover.getStatus(),
-                handover.getNote()
+                handover.getNote(),
+                handover.getCreatedAt()
         );
     }
 }

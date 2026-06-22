@@ -5,9 +5,11 @@ import com.babygearpass.dto.gear.GearItemRequest;
 import com.babygearpass.dto.gear.GearItemStatusRequest;
 import com.babygearpass.entity.GearCategory;
 import com.babygearpass.entity.GearItem;
+import com.babygearpass.entity.QualityCheck;
 import com.babygearpass.entity.User;
 import com.babygearpass.repository.GearCategoryRepository;
 import com.babygearpass.repository.GearItemRepository;
+import com.babygearpass.repository.QualityCheckRepository;
 import com.babygearpass.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -23,6 +25,7 @@ public class GearItemService {
     private final GearItemRepository gearItemRepository;
     private final UserRepository userRepository;
     private final GearCategoryRepository gearCategoryRepository;
+    private final QualityCheckRepository qualityCheckRepository;
 
     public Page<GearItemDTO> getAllGearItems(String keyword, String category, String status, String condition, Pageable pageable) {
         Page<GearItem> items;
@@ -126,6 +129,17 @@ public class GearItemService {
     }
 
     private GearItemDTO toDTO(GearItem item) {
+        String qcStatus = item.getQualityCheckStatus();
+        Integer qcScore = item.getQualityScore();
+        boolean certified = false;
+
+        QualityCheck latestCheck = qualityCheckRepository.findTopByGearItemIdOrderByCreatedAtDesc(item.getId()).orElse(null);
+        if (latestCheck != null) {
+            qcStatus = latestCheck.getStatus();
+            qcScore = latestCheck.getQualityScore();
+            certified = "Approved".equals(latestCheck.getStatus());
+        }
+
         return new GearItemDTO(
                 item.getId(),
                 item.getOwner().getId(),
@@ -141,6 +155,9 @@ public class GearItemService {
                 item.getStatus(),
                 item.getPriceType(),
                 item.getPrice(),
+                qcStatus,
+                qcScore,
+                certified,
                 item.getCreatedAt()
         );
     }

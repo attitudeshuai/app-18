@@ -6,16 +6,17 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "gear_handovers")
-public class GearHandover {
+@Table(name = "quality_checks")
+public class QualityCheck {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -27,30 +28,40 @@ public class GearHandover {
 
     @JsonIgnoreProperties({"passwordHash"})
     @ManyToOne
-    @JoinColumn(name = "giver_id", nullable = false)
-    private User giver;
+    @JoinColumn(name = "submitter_id", nullable = false)
+    private User submitter;
 
     @JsonIgnoreProperties({"passwordHash"})
     @ManyToOne
-    @JoinColumn(name = "receiver_id", nullable = false)
-    private User receiver;
-
-    @ManyToOne
-    @JoinColumn(name = "quality_check_id")
-    private QualityCheck qualityCheck;
-
-    @Column(name = "handover_date")
-    private LocalDate handoverDate;
-
-    private String location;
+    @JoinColumn(name = "reviewer_id")
+    private User reviewer;
 
     @Column(nullable = false)
     private String status = "Pending";
 
+    @Column(name = "reject_reason", columnDefinition = "TEXT")
+    private String rejectReason;
+
+    @Column(name = "supplement_deadline")
+    private LocalDateTime supplementDeadline;
+
     @Column(columnDefinition = "TEXT")
-    private String note;
+    private String remark;
+
+    @Column(name = "quality_score")
+    private Integer qualityScore;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @Column(name = "reviewed_at")
+    private LocalDateTime reviewedAt;
+
+    @OneToMany(mappedBy = "qualityCheck", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<QualityCheckMaterial> materials;
 }

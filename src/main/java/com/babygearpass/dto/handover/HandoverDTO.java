@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Data
 @NoArgsConstructor
@@ -18,8 +19,13 @@ public class HandoverDTO {
     private String giverName;
     private Long receiverId;
     private String receiverName;
+    private Long qualityCheckId;
+    private String qualityCheckStatus;
+    private Integer qualityScore;
+    private Boolean qualityCertified;
     private LocalDate handoverDate;
     private String location;
     private String status;
     private String note;
+    private LocalDateTime createdAt;
 }

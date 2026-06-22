@@ -26,5 +26,8 @@ public class GearItemDTO {
     private String status;
     private String priceType;
     private BigDecimal price;
+    private String qualityCheckStatus;
+    private Integer qualityScore;
+    private Boolean qualityCertified;
     private LocalDateTime createdAt;
 }

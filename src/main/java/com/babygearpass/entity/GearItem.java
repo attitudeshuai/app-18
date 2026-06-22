@@ -9,6 +9,7 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 母婴用品实体 - 用户发布的闲置母婴用品信息
@@ -58,7 +59,16 @@ public class GearItem {
 
     private BigDecimal price;
 
+    @Column(name = "quality_check_status")
+    private String qualityCheckStatus = "NotChecked";
+
+    @Column(name = "quality_score")
+    private Integer qualityScore;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
+
+    @OneToMany(mappedBy = "gearItem")
+    private List<QualityCheck> qualityChecks;
 }
