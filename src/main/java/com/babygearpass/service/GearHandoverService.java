@@ -3,10 +3,9 @@ package com.babygearpass.service;
 import com.babygearpass.dto.handover.HandoverDTO;
 import com.babygearpass.dto.handover.HandoverRequest;
 import com.babygearpass.dto.handover.HandoverStatusRequest;
-import com.babygearpass.entity.GearHandover;
-import com.babygearpass.entity.GearItem;
-import com.babygearpass.entity.QualityCheck;
-import com.babygearpass.entity.User;
+import com.babygearpass.dto.logistics.LogisticsDTO;
+import com.babygearpass.dto.logistics.LogisticsStatusLogDTO;
+import com.babygearpass.entity.*;
 import com.babygearpass.repository.GearHandoverRepository;
 import com.babygearpass.repository.GearItemRepository;
 import com.babygearpass.repository.QualityCheckRepository;
@@ -17,6 +16,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
+
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -146,6 +150,11 @@ public class GearHandoverService {
             certified = "Approved".equals(qcStatus);
         }
 
+        LogisticsDTO logisticsDTO = null;
+        if (handover.getLogistics() != null) {
+            logisticsDTO = toLogisticsDTO(handover.getLogistics());
+        }
+
         return new HandoverDTO(
                 handover.getId(),
                 handover.getGearItem().getId(),
@@ -169,7 +178,56 @@ public class GearHandoverService {
                 handover.getFrozenPoints(),
                 handover.getConfirmedByReceiver(),
                 handover.getHasDispute(),
-                handover.getIsFrozen()
+                handover.getIsFrozen(),
+                logisticsDTO
+        );
+    }
+
+    private LogisticsDTO toLogisticsDTO(Logistics logistics) {
+        List<LogisticsStatusLogDTO> statusLogs = logistics.getStatusLogs() != null
+                ? logistics.getStatusLogs().stream()
+                .sorted(Comparator.comparing(LogisticsStatusLog::getOccurredAt))
+                .map(this::toLogisticsStatusLogDTO)
+                .collect(Collectors.toList())
+                : new ArrayList<>();
+
+        return new LogisticsDTO(
+                logistics.getId(),
+                logistics.getHandover() != null ? logistics.getHandover().getId() : null,
+                logistics.getTrackingNumber(),
+                logistics.getExpressCompanyCode(),
+                logistics.getExpressCompanyName(),
+                logistics.getCurrentStatus(),
+                logistics.getCurrentLocation(),
+                logistics.getEstimatedDeliveryTime(),
+                logistics.getActualDeliveryTime(),
+                logistics.getSenderName(),
+                logistics.getSenderPhone(),
+                logistics.getSenderAddress(),
+                logistics.getReceiverName(),
+                logistics.getReceiverPhone(),
+                logistics.getReceiverAddress(),
+                logistics.getLastSyncTime(),
+                logistics.getSyncStatus(),
+                logistics.getSyncFailCount(),
+                logistics.getRemark(),
+                logistics.getCreatedAt(),
+                logistics.getUpdatedAt(),
+                statusLogs
+        );
+    }
+
+    private LogisticsStatusLogDTO toLogisticsStatusLogDTO(LogisticsStatusLog log) {
+        return new LogisticsStatusLogDTO(
+                log.getId(),
+                log.getStatusCode(),
+                log.getStatusName(),
+                log.getLocation(),
+                log.getDescription(),
+                log.getOccurredAt(),
+                log.getIsSignatureRequired(),
+                log.getOperatorName(),
+                log.getOperatorPhone()
         );
     }
 }

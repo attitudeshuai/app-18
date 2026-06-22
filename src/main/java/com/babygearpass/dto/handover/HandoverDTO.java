@@ -1,5 +1,6 @@
 package com.babygearpass.dto.handover;
 
+import com.babygearpass.dto.logistics.LogisticsDTO;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -35,4 +36,5 @@ public class HandoverDTO {
     private Boolean confirmedByReceiver;
     private Boolean hasDispute;
     private Boolean isFrozen;
+    private LogisticsDTO logistics;
 }

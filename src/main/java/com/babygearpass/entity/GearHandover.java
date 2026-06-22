@@ -81,4 +81,7 @@ public class GearHandover {
 
     @OneToMany(mappedBy = "handover")
     private List<Dispute> disputes;
+
+    @OneToOne(mappedBy = "handover", cascade = CascadeType.ALL)
+    private Logistics logistics;
 }
