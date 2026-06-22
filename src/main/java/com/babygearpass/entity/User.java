@@ -66,6 +66,21 @@ public class User {
     @OneToMany(mappedBy = "provider")
     private List<WishlistMatch> providedMatches;
 
+    @Column(name = "credit_score", nullable = false)
+    private Integer creditScore = 100;
+
+    @Column(name = "credit_level", nullable = false)
+    private String creditLevel = "Good";
+
+    @Column(name = "frozen_points", nullable = false)
+    private Integer frozenPoints = 0;
+
+    @Column(name = "available_points", nullable = false)
+    private Integer availablePoints = 0;
+
     @OneToMany(mappedBy = "user")
     private List<Notification> notifications;
+
+    @OneToMany(mappedBy = "user")
+    private List<CreditRecord> creditRecords;
 }

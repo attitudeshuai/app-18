@@ -28,4 +28,11 @@ public class HandoverDTO {
     private String status;
     private String note;
     private LocalDateTime createdAt;
+    private String escrowStatus;
+    private LocalDateTime escrowStartAt;
+    private LocalDateTime escrowEndAt;
+    private Integer frozenPoints;
+    private Boolean confirmedByReceiver;
+    private Boolean hasDispute;
+    private Boolean isFrozen;
 }

@@ -9,6 +9,7 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -50,7 +51,34 @@ public class GearHandover {
     @Column(columnDefinition = "TEXT")
     private String note;
 
+    @Column(name = "escrow_status", nullable = false)
+    private String escrowStatus = "None";
+
+    @Column(name = "escrow_start_at")
+    private LocalDateTime escrowStartAt;
+
+    @Column(name = "escrow_end_at")
+    private LocalDateTime escrowEndAt;
+
+    @Column(name = "frozen_points", nullable = false)
+    private Integer frozenPoints = 0;
+
+    @Column(name = "confirmed_by_receiver")
+    private Boolean confirmedByReceiver = false;
+
+    @Column(name = "confirmed_at")
+    private LocalDateTime confirmedAt;
+
+    @Column(name = "has_dispute", nullable = false)
+    private Boolean hasDispute = false;
+
+    @Column(name = "is_frozen", nullable = false)
+    private Boolean isFrozen = false;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
+
+    @OneToMany(mappedBy = "handover")
+    private List<Dispute> disputes;
 }

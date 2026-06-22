@@ -162,7 +162,14 @@ public class GearHandoverService {
                 handover.getLocation(),
                 handover.getStatus(),
                 handover.getNote(),
-                handover.getCreatedAt()
+                handover.getCreatedAt(),
+                handover.getEscrowStatus(),
+                handover.getEscrowStartAt(),
+                handover.getEscrowEndAt(),
+                handover.getFrozenPoints(),
+                handover.getConfirmedByReceiver(),
+                handover.getHasDispute(),
+                handover.getIsFrozen()
         );
     }
 }

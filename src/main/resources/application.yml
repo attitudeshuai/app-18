@@ -42,3 +42,7 @@ management:
   endpoint:
     health:
       show-details: always
+
+escrow:
+  default-period-hours: 72
+  auto-complete-after-period: true
