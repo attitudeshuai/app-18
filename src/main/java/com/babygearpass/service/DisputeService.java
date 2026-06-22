@@ -56,7 +56,7 @@ public class DisputeService {
     public Page<DisputeDTO> getMyDisputes(String username, Pageable pageable) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "用户不存在"));
-        return disputeRepository.findByInitiatorId(user.getId(), pageable)
+        return disputeRepository.findByUserIdAsParty(user.getId(), pageable)
                 .map(this::toDTO);
     }
 

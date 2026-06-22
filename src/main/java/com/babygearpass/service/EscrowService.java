@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Duration;
@@ -193,6 +194,7 @@ public class EscrowService {
     }
 
     @Transactional
+    @Scheduled(fixedRateString = "${escrow.check-interval-ms:60000}")
     public void processExpiredEscrows() {
         if (!escrowConfig.isAutoCompleteAfterPeriod()) {
             return;

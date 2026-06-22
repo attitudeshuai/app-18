@@ -46,3 +46,4 @@ management:
 escrow:
   default-period-hours: 72
   auto-complete-after-period: true
+  check-interval-ms: 60000
