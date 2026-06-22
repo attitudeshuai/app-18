@@ -23,8 +23,8 @@ public class Logistics {
     private Long id;
 
     @JsonIgnoreProperties({"passwordHash"})
-    @ManyToOne
-    @JoinColumn(name = "handover_id", nullable = false)
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "handover_id", nullable = false, unique = true)
     private GearHandover handover;
 
     @Column(name = "tracking_number", nullable = false)

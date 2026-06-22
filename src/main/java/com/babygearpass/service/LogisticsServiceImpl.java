@@ -15,9 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -33,6 +31,7 @@ public class LogisticsServiceImpl implements LogisticsService {
     private final UserRepository userRepository;
     private final NotificationRepository notificationRepository;
     private final List<ExpressCompanyDTO> expressCompanies;
+    private final ExpressQueryService expressQueryService;
 
     @Override
     @Transactional
@@ -302,50 +301,78 @@ public class LogisticsServiceImpl implements LogisticsService {
         syncLog.setSyncStartTime(LocalDateTime.now());
 
         try {
-            List<LogisticsStatusLog> fetchedStatusLogs = fetchLogisticsStatusFromApi(
+            logger.info("开始同步物流信息, provider: {}, trackingNumber: {}, company: {}",
+                    expressQueryService.getProviderName(), logistics.getTrackingNumber(), logistics.getExpressCompanyCode());
+
+            ExpressTrackResult trackResult = expressQueryService.queryTrack(
                     logistics.getTrackingNumber(),
                     logistics.getExpressCompanyCode()
             );
 
-            statusLogRepository.deleteByLogisticsId(logistics.getId());
+            syncLog.setRequestDetail("Provider: " + expressQueryService.getProviderName());
+            syncLog.setResponseDetail(trackResult.getRawResponse());
 
-            for (LogisticsStatusLog statusLog : fetchedStatusLogs) {
-                statusLog.setLogistics(logistics);
-                statusLogRepository.save(statusLog);
-            }
+            if (!trackResult.isSuccess()) {
+                logistics.setSyncStatus("Failed");
+                logistics.setSyncFailCount(logistics.getSyncFailCount() + 1);
+                syncLog.setIsSuccess(false);
+                syncLog.setErrorCode(trackResult.getErrorCode());
+                syncLog.setErrorMessage(trackResult.getErrorMessage());
+                logger.warn("物流同步失败, trackingNumber: {}, errorCode: {}, errorMsg: {}",
+                        logistics.getTrackingNumber(), trackResult.getErrorCode(), trackResult.getErrorMessage());
+            } else {
+                List<LogisticsStatusLog> statusLogs = convertTrackItems(trackResult, logistics);
 
-            if (!fetchedStatusLogs.isEmpty()) {
-                LogisticsStatusLog latestLog = fetchedStatusLogs.get(fetchedStatusLogs.size() - 1);
-                logistics.setCurrentStatus(mapApiStatusToInternal(latestLog.getStatusCode()));
-                logistics.setCurrentLocation(latestLog.getLocation());
-            }
-
-            logistics.setEstimatedDeliveryTime(estimateDeliveryTime(fetchedStatusLogs, logistics));
-
-            String finalStatus = logistics.getCurrentStatus();
-            if ("Delivered".equals(finalStatus) || "Signed".equals(finalStatus)) {
-                if (logistics.getActualDeliveryTime() == null) {
-                    logistics.setActualDeliveryTime(LocalDateTime.now());
+                statusLogRepository.deleteByLogisticsId(logistics.getId());
+                for (LogisticsStatusLog statusLog : statusLogs) {
+                    statusLogRepository.save(statusLog);
                 }
-                handleDeliveryCompleted(logistics);
+
+                if (!statusLogs.isEmpty()) {
+                    LogisticsStatusLog latest = statusLogs.get(statusLogs.size() - 1);
+                    logistics.setCurrentLocation(latest.getLocation());
+                }
+
+                logistics.setCurrentStatus(trackResult.getStatus() != null ? trackResult.getStatus() : "Unknown");
+                logistics.setCurrentLocation(trackResult.getCurrentLocation() != null
+                        ? trackResult.getCurrentLocation() : logistics.getCurrentLocation());
+                logistics.setEstimatedDeliveryTime(trackResult.getEstimatedDeliveryTime());
+                logistics.setActualDeliveryTime(trackResult.getActualDeliveryTime());
+
+                if (trackResult.getExpressCompanyCode() != null && !trackResult.getExpressCompanyCode().isBlank()) {
+                    logistics.setExpressCompanyCode(trackResult.getExpressCompanyCode());
+                }
+                if (trackResult.getExpressCompanyName() != null && !trackResult.getExpressCompanyName().isBlank()) {
+                    logistics.setExpressCompanyName(trackResult.getExpressCompanyName());
+                }
+
+                String finalStatus = logistics.getCurrentStatus();
+                if ("Delivered".equals(finalStatus) || "Delivered".equalsIgnoreCase(finalStatus)
+                        || "Signed".equalsIgnoreCase(finalStatus) || "SIGNED".equalsIgnoreCase(finalStatus)) {
+                    if (logistics.getActualDeliveryTime() == null) {
+                        logistics.setActualDeliveryTime(LocalDateTime.now());
+                    }
+                    handleDeliveryCompleted(logistics);
+                }
+
+                logistics.setLastSyncTime(LocalDateTime.now());
+                logistics.setSyncStatus("Success");
+                logistics.setSyncFailCount(0);
+                syncLog.setIsSuccess(true);
+
+                logger.info("物流同步成功, trackingNumber: {}, status: {}, tracks: {}",
+                        logistics.getTrackingNumber(), finalStatus, statusLogs.size());
             }
-
-            logistics.setLastSyncTime(LocalDateTime.now());
-            logistics.setSyncStatus("Success");
-            logistics.setSyncFailCount(0);
-
-            syncLog.setIsSuccess(true);
-            syncLog.setResponseDetail("Fetched " + fetchedStatusLogs.size() + " status logs");
 
         } catch (Exception e) {
-            logger.error("物流同步失败, trackingNumber: {}, company: {}, error: {}",
+            logger.error("物流同步异常, trackingNumber: {}, company: {}, error: {}",
                     logistics.getTrackingNumber(), logistics.getExpressCompanyCode(), e.getMessage(), e);
 
             logistics.setSyncStatus("Failed");
             logistics.setSyncFailCount(logistics.getSyncFailCount() + 1);
 
             syncLog.setIsSuccess(false);
-            syncLog.setErrorCode("SYNC_ERROR");
+            syncLog.setErrorCode("SYNC_EXCEPTION");
             syncLog.setErrorMessage(e.getMessage());
             syncLog.setResponseDetail(e.toString());
         }
@@ -355,92 +382,27 @@ public class LogisticsServiceImpl implements LogisticsService {
         logisticsRepository.save(logistics);
     }
 
-    private List<LogisticsStatusLog> fetchLogisticsStatusFromApi(String trackingNumber, String companyCode) {
-        List<LogisticsStatusLog> mockLogs = new ArrayList<>();
-
-        String[][] statuses = {
-                {"ACCEPTED", "已揽收", "快件已被揽收"},
-                {"TRANSIT", "运输中", "快件正在运输途中"},
-                {"DISPATCHING", "派送中", "快件正在派送中"},
-                {"DELIVERED", "已签收", "快件已被签收"}
-        };
-
-        LocalDateTime baseTime = LocalDateTime.now().minusDays(2);
-        String[] locations = {"上海市浦东新区", "上海市转运中心", "北京市转运中心", "北京市朝阳区"};
-
-        for (int i = 0; i < statuses.length; i++) {
+    private List<LogisticsStatusLog> convertTrackItems(ExpressTrackResult trackResult, Logistics logistics) {
+        List<LogisticsStatusLog> result = new ArrayList<>();
+        if (trackResult.getTracks() == null || trackResult.getTracks().isEmpty()) {
+            return result;
+        }
+        for (ExpressTrackResult.TrackItem item : trackResult.getTracks()) {
             LogisticsStatusLog log = new LogisticsStatusLog();
-            log.setStatusCode(statuses[i][0]);
-            log.setStatusName(statuses[i][1]);
-            log.setLocation(locations[Math.min(i, locations.length - 1)]);
-            log.setDescription(statuses[i][2]);
-            log.setOccurredAt(baseTime.plusHours(i * 6));
-            mockLogs.add(log);
+            log.setLogistics(logistics);
+            log.setStatusCode(item.getStatusCode() != null ? item.getStatusCode() : "Unknown");
+            log.setStatusName(item.getStatusName() != null ? item.getStatusName() : "");
+            log.setLocation(item.getLocation() != null ? item.getLocation() : "");
+            log.setDescription(item.getDescription() != null ? item.getDescription() : "");
+            log.setOccurredAt(item.getOccurredAt() != null ? item.getOccurredAt() : LocalDateTime.now());
+            log.setIsSignatureRequired(item.getIsSignatureRequired() != null ? item.getIsSignatureRequired() : false);
+            log.setOperatorName(item.getOperatorName());
+            log.setOperatorPhone(item.getOperatorPhone());
+            result.add(log);
         }
-
-        return mockLogs;
-    }
-
-    private String mapApiStatusToInternal(String apiStatus) {
-        if (apiStatus == null) return "Unknown";
-        switch (apiStatus.toUpperCase()) {
-            case "ACCEPTED":
-            case "COLLECTED":
-            case "PICKED_UP":
-                return "Accepted";
-            case "TRANSIT":
-            case "IN_TRANSIT":
-            case "TRANSPORTING":
-                return "InTransit";
-            case "ARRIVED":
-            case "ARRIVED_AT_DESTINATION":
-                return "Arrived";
-            case "DISPATCHING":
-            case "OUT_FOR_DELIVERY":
-                return "Dispatching";
-            case "DELIVERED":
-            case "SIGNED":
-            case "SIGN_IN":
-                return "Delivered";
-            case "FAILED":
-            case "DELIVERY_FAILED":
-                return "DeliveryFailed";
-            case "RETURNING":
-                return "Returning";
-            case "RETURNED":
-                return "Returned";
-            default:
-                return "Unknown";
-        }
-    }
-
-    private LocalDateTime estimateDeliveryTime(List<LogisticsStatusLog> statusLogs, Logistics logistics) {
-        if (logistics.getEstimatedDeliveryTime() != null) {
-            return logistics.getEstimatedDeliveryTime();
-        }
-        if (statusLogs == null || statusLogs.isEmpty()) {
-            return LocalDateTime.now().plusDays(3);
-        }
-        LogisticsStatusLog latest = statusLogs.get(statusLogs.size() - 1);
-        String latestStatus = latest.getStatusCode().toUpperCase();
-        switch (latestStatus) {
-            case "ACCEPTED":
-            case "COLLECTED":
-            case "PICKED_UP":
-                return latest.getOccurredAt().plusDays(3);
-            case "TRANSIT":
-            case "IN_TRANSIT":
-            case "TRANSPORTING":
-                return latest.getOccurredAt().plusDays(2);
-            case "ARRIVED":
-            case "ARRIVED_AT_DESTINATION":
-                return latest.getOccurredAt().plusDays(1);
-            case "DISPATCHING":
-            case "OUT_FOR_DELIVERY":
-                return latest.getOccurredAt().plusHours(8);
-            default:
-                return latest.getOccurredAt().plusDays(2);
-        }
+        result.sort(Comparator.comparing(LogisticsStatusLog::getOccurredAt,
+                Comparator.nullsLast(Comparator.naturalOrder())));
+        return result;
     }
 
     private void handleDeliveryCompleted(Logistics logistics) {

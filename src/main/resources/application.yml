@@ -47,3 +47,26 @@ escrow:
   default-period-hours: 72
   auto-complete-after-period: true
   check-interval-ms: 60000
+
+express:
+  api:
+    provider: ${EXPRESS_PROVIDER:mock}
+    connect-timeout-ms: 5000
+    read-timeout-ms: 10000
+    retry-count: 2
+    kuaidi100:
+      enabled: ${KUAI_DI_100_ENABLED:false}
+      customer: ${KUAI_DI_100_CUSTOMER:}
+      key: ${KUAI_DI_100_KEY:}
+      url: https://poll.kuaidi100.com/poll/query.do
+      auto-detect-url: https://www.kuaidi100.com/autonumber/auto
+    kuaidiniao:
+      enabled: ${KUAI_DI_NIAO_ENABLED:false}
+      e-business-id: ${KUAI_DI_NIAO_EBUSINESS_ID:}
+      app-key: ${KUAI_DI_NIAO_APP_KEY:}
+      url: https://api.kdniao.com/Ebusiness/EbusinessOrderHandle.aspx
+      sandbox: false
+    aliyun:
+      enabled: ${ALIYUN_EXPRESS_ENABLED:false}
+      app-code: ${ALIYUN_EXPRESS_APP_CODE:}
+      url: https://wuliu.market.alicloudapi.com/kdi
