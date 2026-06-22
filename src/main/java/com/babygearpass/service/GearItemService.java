@@ -31,14 +31,14 @@ public class GearItemService {
         Page<GearItem> items;
 
         if (keyword != null && !keyword.isBlank()) {
-            items = gearItemRepository.findByTitleContainingIgnoreCase(keyword, pageable);
+            items = gearItemRepository.findByKeywordWithQualityPriority(keyword, pageable);
         } else if (status != null && !status.isBlank()) {
-            items = gearItemRepository.findByStatus(status, pageable);
+            items = gearItemRepository.findByStatusWithQualityPriority(status, pageable);
         } else if (category != null && !category.isBlank()) {
             Long categoryId = Long.parseLong(category);
-            items = gearItemRepository.findByCategoryId(categoryId, pageable);
+            items = gearItemRepository.findByCategoryIdWithQualityPriority(categoryId, pageable);
         } else {
-            items = gearItemRepository.findAll(pageable);
+            items = gearItemRepository.findAllWithQualityPriority(pageable);
         }
 
         return items.map(this::toDTO);

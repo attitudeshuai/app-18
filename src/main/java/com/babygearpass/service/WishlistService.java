@@ -319,6 +319,7 @@ public class WishlistService {
                 notification.getUser().getUsername(),
                 notification.getWishlist() != null ? notification.getWishlist().getId() : null,
                 notification.getWishlistMatch() != null ? notification.getWishlistMatch().getId() : null,
+                notification.getQualityCheck() != null ? notification.getQualityCheck().getId() : null,
                 notification.getType(),
                 notification.getTitle(),
                 notification.getContent(),

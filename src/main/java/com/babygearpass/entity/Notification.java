@@ -33,6 +33,10 @@ public class Notification {
     @JoinColumn(name = "wishlist_match_id")
     private WishlistMatch wishlistMatch;
 
+    @ManyToOne
+    @JoinColumn(name = "quality_check_id")
+    private QualityCheck qualityCheck;
+
     @Column(nullable = false)
     private String type;
 

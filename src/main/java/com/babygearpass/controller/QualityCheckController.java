@@ -10,6 +10,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
@@ -49,6 +50,7 @@ public class QualityCheckController {
     }
 
     @GetMapping("/review")
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<PageResponse<QualityCheckDTO>> reviewChecks(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -96,6 +98,7 @@ public class QualityCheckController {
     }
 
     @PutMapping("/{id}/review")
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<QualityCheckDTO> review(@PathVariable Long id, @RequestBody @Valid QualityCheckReviewRequest request) {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         return ApiResponse.success(qualityCheckService.reviewQualityCheck(id, username, request));

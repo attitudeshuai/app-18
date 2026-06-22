@@ -16,6 +16,7 @@ public class NotificationDTO {
     private String userName;
     private Long wishlistId;
     private Long wishlistMatchId;
+    private Long qualityCheckId;
     private String type;
     private String title;
     private String content;

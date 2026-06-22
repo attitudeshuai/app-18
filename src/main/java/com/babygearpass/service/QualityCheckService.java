@@ -2,10 +2,12 @@ package com.babygearpass.service;
 
 import com.babygearpass.dto.qualitycheck.*;
 import com.babygearpass.entity.GearItem;
+import com.babygearpass.entity.Notification;
 import com.babygearpass.entity.QualityCheck;
 import com.babygearpass.entity.QualityCheckMaterial;
 import com.babygearpass.entity.User;
 import com.babygearpass.repository.GearItemRepository;
+import com.babygearpass.repository.NotificationRepository;
 import com.babygearpass.repository.QualityCheckMaterialRepository;
 import com.babygearpass.repository.QualityCheckRepository;
 import com.babygearpass.repository.UserRepository;
@@ -18,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -30,6 +33,7 @@ public class QualityCheckService {
     private final QualityCheckMaterialRepository qualityCheckMaterialRepository;
     private final GearItemRepository gearItemRepository;
     private final UserRepository userRepository;
+    private final NotificationRepository notificationRepository;
 
     public Page<QualityCheckDTO> getAllQualityChecks(String status, Pageable pageable) {
         Page<QualityCheck> checks;
@@ -128,6 +132,10 @@ public class QualityCheckService {
         User reviewer = userRepository.findByUsername(reviewerUsername)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "用户不存在"));
 
+        if (!"ADMIN".equals(reviewer.getRole())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "只有管理员可以执行审核操作");
+        }
+
         String status = request.getStatus();
         if (!"Approved".equals(status) && !"Rejected".equals(status) && !"SupplementRequested".equals(status)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "无效的审核状态");
@@ -173,6 +181,9 @@ public class QualityCheckService {
         gearItemRepository.save(gearItem);
 
         qualityCheckRepository.save(check);
+
+        sendQualityCheckNotification(check, status, request.getRejectReason(), request.getSupplementDeadline());
+
         return toDTO(check);
     }
 
@@ -241,6 +252,49 @@ public class QualityCheckService {
                 .stream()
                 .map(this::toMaterialDTO)
                 .collect(Collectors.toList());
+    }
+
+    private void sendQualityCheckNotification(QualityCheck check, String status, String rejectReason, LocalDateTime supplementDeadline) {
+        User user = check.getSubmitter();
+        String gearTitle = check.getGearItem().getTitle();
+        String type;
+        String title;
+        StringBuilder content = new StringBuilder();
+
+        if ("Approved".equals(status)) {
+            type = "QualityCheckApproved";
+            title = "质检审核通过";
+            content.append("您的用品 \"").append(gearTitle).append("\" 的质检申请已审核通过。");
+            if (check.getQualityScore() != null) {
+                content.append(" 质量评分：").append(check.getQualityScore()).append("分。");
+            }
+            content.append(" 该用品已获得质检标识，将在搜索结果中优先展示。");
+        } else if ("Rejected".equals(status)) {
+            type = "QualityCheckRejected";
+            title = "质检审核不通过";
+            content.append("您的用品 \"").append(gearTitle).append("\" 的质检申请未通过审核。");
+            content.append("\n\n不通过原因：").append(rejectReason);
+            content.append("\n\n请根据原因补充或修改材料后重新提交质检申请。");
+        } else if ("SupplementRequested".equals(status)) {
+            type = "QualityCheckSupplement";
+            title = "请补充质检材料";
+            content.append("您的用品 \"").append(gearTitle).append("\" 的质检申请需要补充材料。");
+            content.append("\n\n补充原因：").append(rejectReason);
+            if (supplementDeadline != null) {
+                content.append("\n\n请在 ").append(supplementDeadline.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))).append(" 前完成补充，逾期需重新提交申请。");
+            }
+        } else {
+            return;
+        }
+
+        Notification notification = new Notification();
+        notification.setUser(user);
+        notification.setType(type);
+        notification.setTitle(title);
+        notification.setContent(content.toString());
+        notification.setQualityCheck(check);
+        notification.setStatus("Unread");
+        notificationRepository.save(notification);
     }
 
     private QualityCheckDTO toDTO(QualityCheck check) {
